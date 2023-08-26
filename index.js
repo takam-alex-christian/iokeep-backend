@@ -31,8 +31,8 @@ mongoose.connect(process.env.DB_URI).catch((err) => {
 //schemas
 
 const UserSchema = new mongoose.Schema({
-    username: String,
-    password: String, // will be replaced by a hash later
+    username: { type: String, required: true },
+    password: { type: String, required: true }, // will be replaced by a hash later
     _authToken: mongoose.SchemaTypes.ObjectId, //the 
     collectionsIdArray: [mongoose.SchemaTypes.ObjectId]
 })
@@ -74,29 +74,115 @@ const NoteModel = mongoose.model("Note", NoteSchema);
 
 //routes handlers
 
-expressApp.route("/user")
-    .get((req, res) => {
-        UserModel.findOne({ username: req.body.username, password: req.body.password }).then(doc => {
-            console.log(doc);
-            res.send({ message: "welcome back " + doc.username });
-        })
+
+expressApp.route("/auth")
+    .get(async (req, res) => {
+
+        //this whole api will be documented later
+        switch (req.query.q) { //q is pretty much like action
+            case "check_username": {
+                let responseObject = {
+                    available: false,
+                }
+
+                await UserModel.exists({ username: req.query.username }).then(doc => {
+                    //username found
+                    if (doc == null) responseObject.available = true
+                    //else username not found
+                })
+
+                res.send(responseObject);
+
+                break;
+            }default: {
+                console.log("wrong q")
+            }
+        }
+
+
     })
-    .post((req, res) => {
+
+
+expressApp.route("/user")
+    .get(async (req, res) => {
+
+        switch (req.query.action) {
+            case "check_username": { //"check_username"
+
+                let responseObject = {
+                    available: false,
+                }
+
+                await UserModel.exists({ username: req.query.username }).then(doc => {
+                    //username found
+                    if (doc == null) responseObject.available = true
+                    //else username not found
+                })
+
+                res.send(responseObject);
+
+                break;
+            }
+
+            default: {
+                console.log("wrong action received")
+            }
+        }
+
+        // UserModel.findOne({ username: req.body.username, password: req.body.password }).then(doc => {
+        //     console.log(doc);
+        //     res.send({ message: "welcome back " + doc.username });
+        // })
+    })
+
+    .post(async (req, res) => {
         //we validate the data received
+        //not quite validated yet.
         let newUserModel = new UserModel({
             username: req.body.username,
             password: req.body.password,
         })
 
-        newUserModel.save().then(newDoc => {
-            console.log(newDoc)
+        let jsonResponseBody = {
+            message: "",
+            doc: {},
+            err: null,
+        }
 
-            res.send(newDoc)
+        await newUserModel.save().then(newDoc => {
+            console.log(newDoc)
+            jsonResponseBody.message = "success";
+            jsonResponseBody.doc = newDoc;
+
+        }, (err) => {
+            console.log(err);
+            jsonResponseBody.message = "failed";
+            jsonResponseBody.err = err;
         })
+
+        res.send(JSON.stringify(jsonResponseBody))
+
     })
-    .delete((req, res) => {
+    .delete(async (req, res) => {
         //user may terminate their account
-        res.send("user deleted");
+
+        let jsonResponseBody = {
+            _id: ""
+        }
+
+        await UserModel.findByIdAndDelete(req.body._id).then(doc => {
+            console.log(doc);
+
+        }, (err) => {
+
+            //handle error here
+            console.log(err)
+        })
+
+        res.send(
+            jsonResponseBody
+        )
+
     })
     .patch((req, res) => {
         //user may change their password later
@@ -106,11 +192,11 @@ expressApp.route("/user")
 
 
 expressApp.route("/collection")
-    .get((req, res)=>{ //logic to get notes
-        res.send({message: "you get a list of user collections by id and name"})
+    .get((req, res) => { //logic to get notes
+        res.send({ message: "you get a list of user collections by id and name" })
     })
-    .post((req, res)=>{
-        res.send({message: "new collection added"})
+    .post((req, res) => {
+        res.send({ message: "new collection added" })
     })
 
 expressApp.listen(port, () => {
