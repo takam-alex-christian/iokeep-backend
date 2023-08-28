@@ -9,7 +9,7 @@ require("dotenv").config()
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose")
-
+const cookiesParser = require("cookie-parser")
 
 
 const expressApp = express();
@@ -20,6 +20,7 @@ const port = process.env.PORT || 3000
 expressApp.use(bodyParser.urlencoded({ extended: true }));
 expressApp.use(bodyParser.json());
 
+expressApp.use(cookiesParser());
 
 
 //db connection here
@@ -31,14 +32,26 @@ mongoose.connect(process.env.DB_URI).catch((err) => {
 //schemas
 
 const UserSchema = new mongoose.Schema({
+    _id: {
+        type: mongoose.SchemaTypes.ObjectId,
+        default: () => new mongoose.mongo.ObjectId(),
+    },
     username: { type: String, required: true },
     password: { type: String, required: true }, // will be replaced by a hash later
-    _authToken: mongoose.SchemaTypes.ObjectId, //the 
+    _authToken: {
+        type: mongoose.SchemaTypes.ObjectId,
+        default: () => {
+            return new mongoose.mongo.ObjectId()
+        }
+    }, //the 
     collectionsIdArray: [mongoose.SchemaTypes.ObjectId]
 })
 
 const CollectionSchema = new mongoose.Schema({
-    _ownerUserId: mongoose.SchemaTypes.ObjectId,
+    _ownerUserId: {
+        type: mongoose.SchemaTypes.ObjectId,
+        required: true
+    },
     name: String,
     lastConsulted: {
         type: Date,
@@ -49,7 +62,10 @@ const CollectionSchema = new mongoose.Schema({
 })
 
 const NoteSchema = new mongoose.Schema({
-    _ownerCollectionId: mongoose.SchemaTypes.ObjectId,// one note is not expected to be owned by multiple collections
+    _ownerCollectionId: {
+        type: mongoose.SchemaTypes.ObjectId,
+        required: true
+    },// one note is not expected to be owned by multiple collections
     title: String,
     body: String,
     tags: [String],
@@ -75,94 +91,129 @@ const NoteModel = mongoose.model("Note", NoteSchema);
 //routes handlers
 
 
-expressApp.route("/auth")
-    .get(async (req, res) => {
 
-        //this whole api will be documented later
-        switch (req.query.q) { //q is pretty much like action
-            case "check_username": {
-                let responseObject = {
-                    available: false,
-                }
+expressApp.get("/auth/check_username", async (req, res) => {
 
-                await UserModel.exists({ username: req.query.username }).then(doc => {
-                    //username found
-                    if (doc == null) responseObject.available = true
-                    //else username not found
+    let responseObject = {
+        available: false,
+    }
+
+    await UserModel.exists({ username: req.query.username }).then(doc => {
+        //username found
+        if (doc == null) responseObject.available = true
+        //else username not found
+    })
+
+    res.send(responseObject);
+
+
+    // console.log(req.cookies)
+})
+
+expressApp.post("/auth/signin", async (req, res) => {
+
+    let jsonResponseBody = {
+        message: "",
+        doc: {},
+        err: []
+    }
+
+    await UserModel.findOne({ username: req.body.username }).then(async (fetchedDoc) => {
+        if (fetchedDoc != null) {
+            if (req.body.password == fetchedDoc.password) {
+                let _authToken = new mongoose.mongo.ObjectId();
+
+                fetchedDoc._authToken = _authToken;
+
+                await fetchedDoc.save().then((savedDoc) => {
+                    jsonResponseBody.message = "signin successful";
+                    jsonResponseBody.doc = savedDoc;
                 })
 
-                res.send(responseObject);
+                //we set the _authToken
+                res.cookie("_authToken", _authToken.toString(), {
+                    httpOnly: true,
+                    domain: "http://localhost:3000", //it's the guy that actually received the cookies
+                    path: "/auth"
+                })
 
-                break;
-            }default: {
-                console.log("wrong q")
+
+            } else {
+                err.push("Wrong Password")
             }
+        } else {
+            err.push("No account with username <" + req.body.username + "> exists")
         }
-
-
     })
+
+    res.send(JSON.stringify(jsonResponseBody))
+
+})
+
+expressApp.post("/auth/signup", async (req, res) => {
+    //we validate the data received
+    //not quite validated yet.
+
+    //req.body keys could be validated here before use
+
+    let newUserModel = new UserModel({
+        username: req.body.username,
+        password: req.body.password,
+    })
+
+    //response
+    let jsonResponseBody = {
+        message: "",
+        doc: {},
+        err: [], //array of errors
+    }
+
+    const currentDate = new Date(); currentDate.setDate(currentDate.getMonth() + 1);
+
+    // console.log(req.cookies)
+
+    await UserModel.findOne({
+        username: req.body.username
+    }).then(async (doc) => {
+        if (doc == null) {
+
+            await newUserModel.save().then(newDoc => {
+                console.log(newDoc)
+                jsonResponseBody.message = "success";
+                jsonResponseBody.doc = newDoc;
+
+                res.cookie('_authToken', newDoc._authToken, {
+                    domain: "http://localhost:3000",
+                    path: "/auth",
+                    httpOnly: true,
+                    maxAge: currentDate
+                })
+
+            }, (err) => {
+                console.log(err);
+                jsonResponseBody.message = "failed";
+                jsonResponseBody.err = err;
+            })
+
+        } else {
+            jsonResponseBody.err = "username already taken"
+        }
+    })
+
+    res.send(JSON.stringify(jsonResponseBody))
+
+}
+
+
+)
 
 
 expressApp.route("/user")
-    .get(async (req, res) => {
-
-        switch (req.query.action) {
-            case "check_username": { //"check_username"
-
-                let responseObject = {
-                    available: false,
-                }
-
-                await UserModel.exists({ username: req.query.username }).then(doc => {
-                    //username found
-                    if (doc == null) responseObject.available = true
-                    //else username not found
-                })
-
-                res.send(responseObject);
-
-                break;
-            }
-
-            default: {
-                console.log("wrong action received")
-            }
-        }
-
-        // UserModel.findOne({ username: req.body.username, password: req.body.password }).then(doc => {
-        //     console.log(doc);
-        //     res.send({ message: "welcome back " + doc.username });
-        // })
-    })
-
-    .post(async (req, res) => {
-        //we validate the data received
-        //not quite validated yet.
-        let newUserModel = new UserModel({
-            username: req.body.username,
-            password: req.body.password,
-        })
-
-        let jsonResponseBody = {
-            message: "",
-            doc: {},
-            err: null,
-        }
-
-        await newUserModel.save().then(newDoc => {
-            console.log(newDoc)
-            jsonResponseBody.message = "success";
-            jsonResponseBody.doc = newDoc;
-
-        }, (err) => {
-            console.log(err);
-            jsonResponseBody.message = "failed";
-            jsonResponseBody.err = err;
-        })
-
-        res.send(JSON.stringify(jsonResponseBody))
+    //unimplemented. untested. not production ready
+    .get((req, res) => {
 
     })
+    //untested. not production ready
     .delete(async (req, res) => {
         //user may terminate their account
 
@@ -184,6 +235,8 @@ expressApp.route("/user")
         )
 
     })
+
+    //unimplemented. untested. not production ready
     .patch((req, res) => {
         //user may change their password later
         //user may change their username later
