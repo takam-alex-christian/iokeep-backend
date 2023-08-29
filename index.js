@@ -111,12 +111,20 @@ expressApp.get("/auth/check_username", async (req, res) => {
 })
 
 expressApp.post("/auth/signin", async (req, res) => {
+    
+    console.log(req.cookies)
 
     let jsonResponseBody = {
         message: "",
         doc: {},
-        err: []
+        err: [],
+
+        //standard response
+        succeeded: false //this can be checked on the front end
     }
+
+    const currentDate = new Date(); currentDate.setDate(currentDate.getMonth() + 1);
+
 
     await UserModel.findOne({ username: req.body.username }).then(async (fetchedDoc) => {
         if (fetchedDoc != null) {
@@ -128,13 +136,15 @@ expressApp.post("/auth/signin", async (req, res) => {
                 await fetchedDoc.save().then((savedDoc) => {
                     jsonResponseBody.message = "signin successful";
                     jsonResponseBody.doc = savedDoc;
+                    jsonResponseBody.succeeded = true;
+
                 })
 
                 //we set the _authToken
                 res.cookie("_authToken", _authToken.toString(), {
-                    httpOnly: true,
+                    // httpOnly: true,
                     domain: "http://localhost:3000", //it's the guy that actually received the cookies
-                    path: "/auth"
+                    path: "/"
                 })
 
 
@@ -166,6 +176,7 @@ expressApp.post("/auth/signup", async (req, res) => {
         message: "",
         doc: {},
         err: [], //array of errors
+        succeeded: false
     }
 
     const currentDate = new Date(); currentDate.setDate(currentDate.getMonth() + 1);
@@ -183,10 +194,10 @@ expressApp.post("/auth/signup", async (req, res) => {
                 jsonResponseBody.doc = newDoc;
 
                 res.cookie('_authToken', newDoc._authToken, {
-                    domain: "http://localhost:3000",
-                    path: "/auth",
-                    httpOnly: true,
-                    maxAge: currentDate
+                    domain: "http://localhost:3000", //the domain is the frontend url
+                    path: "/",
+                    // httpOnly: true,
+                    // maxAge: currentDate
                 })
 
             }, (err) => {
@@ -210,8 +221,24 @@ expressApp.post("/auth/signup", async (req, res) => {
 
 expressApp.route("/user")
     //unimplemented. untested. not production ready
-    .get((req, res) => {
+    .get(async (req, res) => {
+        //username = 
 
+        let jsonResponseBody = {
+            username: ""
+        }
+
+        await UserModel.findOne({_authToken: req.cookies._authToken}).then((userDoc)=>{
+            if(userDoc !== null){
+                jsonResponseBody.username = userDoc.username;
+            }
+        }, (err)=>{
+            //if it fails to find
+            throw new Error(err)
+        })
+
+        res.send(JSON.stringify(jsonResponseBody));
+        
     })
     //untested. not production ready
     .delete(async (req, res) => {
