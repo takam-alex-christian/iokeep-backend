@@ -140,7 +140,7 @@ expressApp.post("/auth/signin", async (req, res) => {
                     jsonResponseBody.succeeded = true;
 
                     // //we set the _authToken
-                    res.cookie("_authToken", savedDoc.username + _authToken.toString(), {
+                    res.cookie("_authToken", _authToken.toString(), {
                         httpOnly: true,
                         domain: "localhost", //it's the guy that actually received the cookies
                         path: "/"
@@ -223,12 +223,16 @@ expressApp.post("/auth/signup", async (req, res) => {
 expressApp.route("/user")
     //unimplemented. untested. not production ready
     .get(async (req, res) => {
+
+        console.log(req.cookies)
+
         //username = 
 
         let jsonResponseBody = {
-            username: ""
+            username: "",
         }
 
+        
         await UserModel.findOne({ _authToken: req.cookies._authToken }).then((userDoc) => {
             if (userDoc !== null) {
                 jsonResponseBody.username = userDoc.username;
