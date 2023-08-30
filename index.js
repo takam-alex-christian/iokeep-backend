@@ -111,8 +111,9 @@ expressApp.get("/auth/check_username", async (req, res) => {
 })
 
 expressApp.post("/auth/signin", async (req, res) => {
-    
+
     console.log(req.cookies)
+    // console.log(req.body)
 
     let jsonResponseBody = {
         message: "",
@@ -138,21 +139,20 @@ expressApp.post("/auth/signin", async (req, res) => {
                     jsonResponseBody.doc = savedDoc;
                     jsonResponseBody.succeeded = true;
 
-                })
-
-                //we set the _authToken
-                res.cookie("_authToken", _authToken.toString(), {
-                    // httpOnly: true,
-                    domain: "http://localhost:3000", //it's the guy that actually received the cookies
-                    path: "/"
+                    // //we set the _authToken
+                    res.cookie("_authToken", savedDoc.username + _authToken.toString(), {
+                        httpOnly: true,
+                        domain: "localhost", //it's the guy that actually received the cookies
+                        path: "/"
+                    })
                 })
 
 
             } else {
-                err.push("Wrong Password")
+                jsonResponseBody.err.push("Wrong Password")
             }
         } else {
-            err.push("No account with username <" + req.body.username + "> exists")
+            jsonResponseBody.err.push("No account with username <" + req.body.username + "> exists")
         }
     })
 
@@ -179,7 +179,8 @@ expressApp.post("/auth/signup", async (req, res) => {
         succeeded: false
     }
 
-    const currentDate = new Date(); currentDate.setDate(currentDate.getMonth() + 1);
+    const currentDate = new Date( Date.now() ); 
+    currentDate.setMonth(currentDate.getMonth() + 1);
 
     // console.log(req.cookies)
 
@@ -193,11 +194,11 @@ expressApp.post("/auth/signup", async (req, res) => {
                 jsonResponseBody.message = "success";
                 jsonResponseBody.doc = newDoc;
 
-                res.cookie('_authToken', newDoc._authToken, {
-                    domain: "http://localhost:3000", //the domain is the frontend url
-                    path: "/",
-                    // httpOnly: true,
-                    // maxAge: currentDate
+                res.cookie("_authToken", newDoc._authToken.toString(), {
+                    httpOnly: true,
+                    domain: "localhost",
+                    expires: currentDate,
+                    path: "/"
                 })
 
             }, (err) => {
@@ -228,17 +229,17 @@ expressApp.route("/user")
             username: ""
         }
 
-        await UserModel.findOne({_authToken: req.cookies._authToken}).then((userDoc)=>{
-            if(userDoc !== null){
+        await UserModel.findOne({ _authToken: req.cookies._authToken }).then((userDoc) => {
+            if (userDoc !== null) {
                 jsonResponseBody.username = userDoc.username;
             }
-        }, (err)=>{
+        }, (err) => {
             //if it fails to find
             throw new Error(err)
         })
 
         res.send(JSON.stringify(jsonResponseBody));
-        
+
     })
     //untested. not production ready
     .delete(async (req, res) => {
