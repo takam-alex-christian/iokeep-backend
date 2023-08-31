@@ -112,7 +112,7 @@ expressApp.get("/auth/check_username", async (req, res) => {
 
 expressApp.post("/auth/signin", async (req, res) => {
 
-    console.log(req.cookies)
+    //console.log(req.cookies)
     // console.log(req.body)
 
     let jsonResponseBody = {
@@ -179,7 +179,7 @@ expressApp.post("/auth/signup", async (req, res) => {
         succeeded: false
     }
 
-    const currentDate = new Date( Date.now() ); 
+    const currentDate = new Date(Date.now());
     currentDate.setMonth(currentDate.getMonth() + 1);
 
     // console.log(req.cookies)
@@ -230,12 +230,18 @@ expressApp.route("/user")
 
         let jsonResponseBody = {
             username: "",
+            doc: {},
+            error: ""
         }
 
-        
+
         await UserModel.findOne({ _authToken: req.cookies._authToken }).then((userDoc) => {
+            console.log(userDoc)
             if (userDoc !== null) {
                 jsonResponseBody.username = userDoc.username;
+                jsonResponseBody.doc = userDoc
+            }else{
+                jsonResponseBody.error = "loggin in to view userdata"
             }
         }, (err) => {
             //if it fails to find
@@ -275,13 +281,79 @@ expressApp.route("/user")
         res.send("user partially updated")
     })
 
+expressApp.route("/collections")
+
+    //get auth token
+    //use auth token to fetch collectionsIds
+    //use collectionsIds to fetch collectionsData
+    //response with a json array of collectionData
+
+    .get(async (req, res) => {
+
+        let jsonCollectionsResponse = { //this object should be typed accordingly in the front end
+            collections: [], // array of collectionsTypes
+            error: "",  //will contain a string describing the error
+            hasError: false // should be true if an error is met
+        }
+
+
+        console.log(req.cookies._authToken);
+
+        if(req.cookies._authToken) {//if an auth token exists  we proceed
+
+            await UserModel.findOne({_authToken: req.cookies._authToken}).then(async (fetchedUser)=>{
+                console.log(fetchedUser)
+
+                await CollectionModel.find({}).then((collectionsFound)=>{
+                    jsonCollectionsResponse.collections = [...collectionsFound];
+                })
+
+            }, (err)=>{
+                jsonCollectionsResponse.hasError = true,
+                jsonCollectionsResponse.error = err
+            })
+        }else {
+            jsonCollectionsResponse.error = "Restricted access! loggin first"
+        }
+
+        res.send(JSON.stringify(jsonCollectionsResponse))
+    })
 
 expressApp.route("/collection")
     .get((req, res) => { //logic to get notes
         res.send({ message: "you get a list of user collections by id and name" })
     })
-    .post((req, res) => {
-        res.send({ message: "new collection added" })
+    .post(async (req, res) => { 
+        
+        //req {collectionName}
+
+        // console.log(req.cookies._authToken);
+
+        let jsonResponseBody = {
+            
+            succeeded: false,
+
+        }
+
+        await UserModel.findOne({_authToken: req.cookies._authToken}).then(async (foundUser)=>{
+            let newCollection = new CollectionModel({
+                _ownerUserId: foundUser._id,
+                name: req.body.collectionName
+            });
+
+            await newCollection.save().then((returnedCollection)=>{
+                jsonResponseBody.succeeded = true;
+            }, (err)=>{
+                console.log(err)
+            })
+
+        }, (err)=>{
+            console.log(err)
+        })
+
+        
+
+        res.send(JSON.stringify(jsonResponseBody))
     })
 
 expressApp.listen(port, () => {
