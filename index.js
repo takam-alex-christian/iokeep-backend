@@ -304,7 +304,7 @@ expressApp.route("/collections")
             await UserModel.findOne({_authToken: req.cookies._authToken}).then(async (fetchedUser)=>{
                 console.log(fetchedUser)
 
-                await CollectionModel.find({}).then((collectionsFound)=>{
+                await CollectionModel.find({_ownerUserId: fetchedUser._id}).then((collectionsFound)=>{
                     jsonCollectionsResponse.collections = [...collectionsFound];
                 })
 
