@@ -52,7 +52,7 @@ const CollectionSchema = new mongoose.Schema({
         type: mongoose.SchemaTypes.ObjectId,
         required: true
     },
-    name: String,
+    collectionName: String,
     lastConsulted: {
         type: Date,
         default: () => {
@@ -102,6 +102,8 @@ expressApp.get("/auth/check_username", async (req, res) => {
         //username found
         if (doc == null) responseObject.available = true
         //else username not found
+    }, (err)=>{
+        console.log(err)
     })
 
     res.send(responseObject);
@@ -338,7 +340,7 @@ expressApp.route("/collection")
         await UserModel.findOne({_authToken: req.cookies._authToken}).then(async (foundUser)=>{
             let newCollection = new CollectionModel({
                 _ownerUserId: foundUser._id,
-                name: req.body.collectionName
+                collectionName: req.body.collectionName
             });
 
             await newCollection.save().then((returnedCollection)=>{
