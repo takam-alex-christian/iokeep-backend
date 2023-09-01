@@ -48,6 +48,10 @@ const UserSchema = new mongoose.Schema({
 })
 
 const CollectionSchema = new mongoose.Schema({
+    _collectionId: {
+        type: mongoose.SchemaTypes.ObjectId,
+        default: () => new mongoose.mongo.ObjectId()
+    },
     _ownerUserId: {
         type: mongoose.SchemaTypes.ObjectId,
         required: true
@@ -102,7 +106,7 @@ expressApp.get("/auth/check_username", async (req, res) => {
         //username found
         if (doc == null) responseObject.available = true
         //else username not found
-    }, (err)=>{
+    }, (err) => {
         console.log(err)
     })
 
@@ -242,7 +246,7 @@ expressApp.route("/user")
             if (userDoc !== null) {
                 jsonResponseBody.username = userDoc.username;
                 jsonResponseBody.doc = userDoc
-            }else{
+            } else {
                 jsonResponseBody.error = "loggin in to view userdata"
             }
         }, (err) => {
@@ -301,20 +305,20 @@ expressApp.route("/collections")
 
         console.log(req.cookies._authToken);
 
-        if(req.cookies._authToken) {//if an auth token exists  we proceed
+        if (req.cookies._authToken) {//if an auth token exists  we proceed
 
-            await UserModel.findOne({_authToken: req.cookies._authToken}).then(async (fetchedUser)=>{
+            await UserModel.findOne({ _authToken: req.cookies._authToken }).then(async (fetchedUser) => {
                 console.log(fetchedUser)
 
-                await CollectionModel.find({_ownerUserId: fetchedUser._id}).then((collectionsFound)=>{
+                await CollectionModel.find({ _ownerUserId: fetchedUser._id }).then((collectionsFound) => {
                     jsonCollectionsResponse.collections = [...collectionsFound];
                 })
 
-            }, (err)=>{
+            }, (err) => {
                 jsonCollectionsResponse.hasError = true,
-                jsonCollectionsResponse.error = err
+                    jsonCollectionsResponse.error = err
             })
-        }else {
+        } else {
             jsonCollectionsResponse.error = "Restricted access! loggin first"
         }
 
@@ -325,37 +329,131 @@ expressApp.route("/collection")
     .get((req, res) => { //logic to get notes
         res.send({ message: "you get a list of user collections by id and name" })
     })
-    .post(async (req, res) => { 
-        
+    .post(async (req, res) => {
+
         //req {collectionName}
 
         // console.log(req.cookies._authToken);
 
         let jsonResponseBody = {
-            
+
             succeeded: false,
 
         }
 
-        await UserModel.findOne({_authToken: req.cookies._authToken}).then(async (foundUser)=>{
+        await UserModel.findOne({ _authToken: req.cookies._authToken }).then(async (foundUser) => {
             let newCollection = new CollectionModel({
                 _ownerUserId: foundUser._id,
                 collectionName: req.body.collectionName
             });
 
-            await newCollection.save().then((returnedCollection)=>{
+            await newCollection.save().then((returnedCollection) => {
                 jsonResponseBody.succeeded = true;
-            }, (err)=>{
+            }, (err) => {
                 console.log(err)
             })
 
-        }, (err)=>{
+        }, (err) => {
             console.log(err)
         })
 
-        
+
 
         res.send(JSON.stringify(jsonResponseBody))
+    })
+
+
+expressApp.route("/notes")
+    .get(async (req, res) => {
+
+        //req.body expected {collectionId}
+
+        //this jsonResponse object is subject to change
+        let jsonResponseBody = {
+
+            docs: [],
+            error: "",
+
+        }
+
+        //we check for the _authToken cookies
+        if (req.cookies._authToken) {
+
+            await UserModel.findOne({ _authToken: req.cookies._authToken }).then(async (foundUser) => {
+
+                if (foundUser !== null) {
+                    //we can continue with the note fetching process
+
+                    await NoteModel.find({ _ownerCollectionId: req.body._collectionId }).then((foundNotes) => {
+                        //we can do something with the fetched notes 
+                        if (foundNotes.length !== 0) {
+                            jsonResponseBody.docs = foundNotes //prepare them as response
+                        } else if (foundNotes.length == 0) {
+                            jsonResponseBody.error = "No notes found"
+                        }
+
+                        console.log(foundNotes)
+
+                    }, (err) => {
+                        console.log(err)
+                    })
+
+                } else if (foundUser == null) {
+                    error: "no user found, sigin"
+                }
+
+            }, (err) => {
+                console.log(err)
+            })
+
+        } else {
+            jsonResponseBody.error = "Sigin in first"
+        }
+
+        res.json(jsonResponseBody)
+
+    })
+    .post(async (req, res) => {
+        //we expect a req.body of type NoteDataType as defined in the front end
+
+        let jsonResponseBody = {
+            succeeded: false,
+            doc: {},
+            error: ""
+        }
+
+        //we expect a req.cookie._authToken
+        if (req.cookies._authToken) {
+
+            //check for the _ownerCollectionId
+            if (req.body._ownerCollectionId) {
+
+                let newNote = new NoteModel({
+                    _ownerCollectionId: req.body._ownerCollectionId,
+                    title: req.body.title,
+                    body: req.body.body,
+                    tags: [],
+                })
+
+
+                await newNote.save().then((addedDoc)=>{
+                    
+                    jsonResponseBody.doc = addedDoc
+
+                }, (err)=>{
+                    jsonResponseBody.error = err;
+                    console.log(error);
+                })
+
+            } else {
+                jsonResponseBody.error = "choose a collection to add your note to"
+            }
+
+        } else {
+            jsonResponseBody.error = "Sign in before adding a note"
+        }
+
+        res.json(jsonResponseBody)
     })
 
 expressApp.listen(port, () => {
