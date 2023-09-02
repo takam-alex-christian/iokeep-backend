@@ -344,7 +344,8 @@ expressApp.route("/collection")
         await UserModel.findOne({ _authToken: req.cookies._authToken }).then(async (foundUser) => {
             let newCollection = new CollectionModel({
                 _ownerUserId: foundUser._id,
-                collectionName: req.body.collectionName
+                collectionName: req.body.collectionName,
+                _collectionId: new mongoose.mongo.ObjectId() //this wil fix the bug of constantly changing
             });
 
             await newCollection.save().then((returnedCollection) => {
@@ -366,12 +367,12 @@ expressApp.route("/collection")
 expressApp.route("/notes")
     .get(async (req, res) => {
 
-        //req.body expected {collectionId}
+        //req.query expected {collectionId}
 
         //this jsonResponse object is subject to change
         let jsonResponseBody = {
 
-            docs: [],
+            notes: [],
             error: "",
 
         }
@@ -383,16 +384,17 @@ expressApp.route("/notes")
 
                 if (foundUser !== null) {
                     //we can continue with the note fetching process
-
-                    await NoteModel.find({ _ownerCollectionId: req.body._collectionId }).then((foundNotes) => {
+                    // console.log(`the value of req.query._collectionId is ${req.query._collectionId}`)
+                    console.log(req.query)
+                    await NoteModel.find({ _ownerCollectionId: req.query._collectionId }).then((foundNotes) => {
                         //we can do something with the fetched notes 
                         if (foundNotes.length !== 0) {
-                            jsonResponseBody.docs = foundNotes //prepare them as response
+                            jsonResponseBody.notes = foundNotes //prepare them as response
                         } else if (foundNotes.length == 0) {
                             jsonResponseBody.error = "No notes found"
                         }
 
-                        console.log(foundNotes)
+                        // console.log(foundNotes)
 
                     }, (err) => {
                         console.log(err)
@@ -424,6 +426,8 @@ expressApp.route("/notes")
 
         //we expect a req.cookie._authToken
         if (req.cookies._authToken) {
+            
+            console.log(req.body)
 
             //check for the _ownerCollectionId
             if (req.body._ownerCollectionId) {
