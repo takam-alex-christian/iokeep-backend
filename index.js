@@ -248,14 +248,14 @@ expressApp.post("/auth/signup", async (req, res) => {
 
 )
 
-expressApp.post("/auth/logout", async (req, res) => {
+expressApp.post("/auth/signout", async (req, res) => {
 
     let cookieAuthToken = req.cookies._authToken;
 
     let jsonsResponse = {
         succeeded: false,
 
-        message: "Logged out successfully"
+        message: "signed out successfully"
     }
 
     let {userDoc, isError, errorIfAny} = await getUserFromAuthToken(cookieAuthToken);
