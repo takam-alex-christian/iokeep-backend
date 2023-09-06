@@ -92,8 +92,31 @@ const UserModel = mongoose.model("User", UserSchema);
 const CollectionModel = mongoose.model("Collection", CollectionSchema);
 const NoteModel = mongoose.model("Note", NoteSchema);
 
-//routes handlers
 
+//utils functions
+async function getUserFromAuthToken(_authToken) {
+
+    let userDoc = null
+    let isError = false
+    let errorIfAny = ""
+
+    await UserModel.findOne({ _authToken: _authToken }).then((foundUser) => {
+        if (foundUser !== null) {
+            userDoc = foundUser
+        } else {
+            isError = true;
+            errorIfAny = "No user found with this token"
+        }
+    }, (err) => {
+        console.log(err);
+        isError = true
+    })
+
+
+    return { userDoc, isError, errorIfAny }
+}
+
+//routes handlers
 
 
 expressApp.get("/auth/check_username", async (req, res) => {
@@ -225,6 +248,28 @@ expressApp.post("/auth/signup", async (req, res) => {
 
 )
 
+expressApp.post("/auth/logout", async (req, res) => {
+
+    let cookieAuthToken = req.cookies._authToken;
+
+    let jsonsResponse = {
+        succeeded: false,
+
+        message: "Logged out successfully"
+    }
+
+    let {userDoc, isError, errorIfAny} = await getUserFromAuthToken(cookieAuthToken);
+
+    if (isError == false) {
+        userDoc._authToken = new mongoose.mongo.ObjectId(0);
+        userDoc.save();
+        
+        res.clearCookie("_authToken");
+        
+    }
+
+    res.send(JSON.stringify(jsonsResponse))
+})
 
 expressApp.route("/user")
     //unimplemented. untested. not production ready
@@ -247,7 +292,7 @@ expressApp.route("/user")
                 jsonResponseBody.username = userDoc.username;
                 jsonResponseBody.doc = userDoc
             } else {
-                jsonResponseBody.error = "loggin in to view userdata"
+                jsonResponseBody.error = "login in to view userdata"
             }
         }, (err) => {
             //if it fails to find
@@ -308,11 +353,22 @@ expressApp.route("/collections")
         if (req.cookies._authToken) {//if an auth token exists  we proceed
 
             await UserModel.findOne({ _authToken: req.cookies._authToken }).then(async (fetchedUser) => {
-                console.log(fetchedUser)
 
-                await CollectionModel.find({ _ownerUserId: fetchedUser._id }).then((collectionsFound) => {
-                    jsonCollectionsResponse.collections = [...collectionsFound];
-                })
+                if (fetchedUser !== null) {
+                    await CollectionModel.find({ _ownerUserId: fetchedUser._id }).then((collectionsFound) => {
+                        jsonCollectionsResponse.collections = [...collectionsFound];
+                    })
+                } else {
+                    jsonCollectionsResponse.error = "no user was found with this token";
+
+                    //this token is therefore invalid,
+                    //we reset the _authToken cookie
+
+                    res.cookie("_authToken", "", {
+                        httpOnly: true,
+                    });
+
+                }
 
             }, (err) => {
                 jsonCollectionsResponse.hasError = true,
@@ -363,7 +419,6 @@ expressApp.route("/collection")
         res.send(JSON.stringify(jsonResponseBody))
     })
 
-
 expressApp.route("/notes")
     .get(async (req, res) => {
 
@@ -401,7 +456,14 @@ expressApp.route("/notes")
                     })
 
                 } else if (foundUser == null) {
-                    error: "no user found, sigin"
+                    jsonResponseBody.error = "no user found, sigin"
+
+                    //we un authenticate the user in that case
+                    res.cookie("_authToken", "", {
+                        httpOnly: true,
+                        path: "/",
+                        domain: "localhost"
+                    })
                 }
 
             }, (err) => {
@@ -426,7 +488,7 @@ expressApp.route("/notes")
 
         //we expect a req.cookie._authToken
         if (req.cookies._authToken) {
-            
+
             console.log(req.body)
 
             //check for the _ownerCollectionId
@@ -440,11 +502,11 @@ expressApp.route("/notes")
                 })
 
 
-                await newNote.save().then((addedDoc)=>{
-                    
+                await newNote.save().then((addedDoc) => {
+
                     jsonResponseBody.doc = addedDoc
 
-                }, (err)=>{
+                }, (err) => {
                     jsonResponseBody.error = err;
                     console.log(error);
                 })
