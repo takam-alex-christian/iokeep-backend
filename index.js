@@ -508,7 +508,7 @@ expressApp.route("/notes")
 
                 }, (err) => {
                     jsonResponseBody.error = err;
-                    console.log(error);
+                    console.log(err);
                 })
 
             } else {
