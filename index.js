@@ -171,7 +171,7 @@ expressApp.post("/auth/signin", async (req, res) => {
                     // //we set the _authToken
                     res.cookie("_authToken", _authToken.toString(), {
                         httpOnly: true,
-                        domain: "localhost", //it's the guy that actually received the cookies
+                        // domain: "localhost", //it's the guy that actually received the cookies
                         path: "/"
                     })
                 })
@@ -225,7 +225,7 @@ expressApp.post("/auth/signup", async (req, res) => {
 
                 res.cookie("_authToken", newDoc._authToken.toString(), {
                     httpOnly: true,
-                    domain: "localhost",
+                    // domain: "localhost",
                     expires: currentDate,
                     path: "/"
                 })
@@ -462,7 +462,7 @@ expressApp.route("/notes")
                     res.cookie("_authToken", "", {
                         httpOnly: true,
                         path: "/",
-                        domain: "localhost"
+                        // domain: "localhost"
                     })
                 }
 
