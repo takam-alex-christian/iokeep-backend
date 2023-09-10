@@ -171,7 +171,8 @@ expressApp.post("/auth/signin", async (req, res) => {
                     // //we set the _authToken
                     res.cookie("_authToken", _authToken.toString(), {
                         httpOnly: true,
-                        domain: process.env.FE_DOMAIN, //it's the guy that actually received the cookies
+                        domain: process.env.FE_DOMAIN,
+                        maxAge: currentDate, 
                         path: "/"
                     })
                 })
