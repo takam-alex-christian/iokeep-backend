@@ -223,11 +223,12 @@ expressApp.post("/auth/signup", async (req, res) => {
                 console.log(newDoc)
                 jsonResponseBody.message = "success";
                 jsonResponseBody.doc = newDoc;
+                jsonResponseBody.succeeded = true;
 
                 res.cookie("_authToken", newDoc._authToken.toString(), {
                     httpOnly: true,
                     domain: process.env.FE_DOMAIN,
-                    // expires: currentDate,
+                    expires: currentDate,
                     path: "/"
                 })
 
