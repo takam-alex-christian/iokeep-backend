@@ -266,7 +266,7 @@ expressApp.post("/auth/signout", async (req, res) => {
         userDoc._authToken = new mongoose.mongo.ObjectId(0);
         userDoc.save();
         
-        res.clearCookie("_authToken");
+        res.clearCookie("_authToken", {sameSite: "lax", httpOnly: true, path: "/"});
         
     }
 
