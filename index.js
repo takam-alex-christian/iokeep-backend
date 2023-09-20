@@ -172,7 +172,7 @@ expressApp.post("/auth/signin", async (req, res) => {
                     res.cookie("_authToken", _authToken.toString(), {
                         httpOnly: true,
                         domain: process.env.FE_DOMAIN,
-                        maxAge: currentDate, 
+                        maxAge: currentDate,
                         path: "/"
                     })
                 })
@@ -260,14 +260,14 @@ expressApp.post("/auth/signout", async (req, res) => {
         message: "signed out successfully"
     }
 
-    let {userDoc, isError, errorIfAny} = await getUserFromAuthToken(cookieAuthToken);
+    let { userDoc, isError, errorIfAny } = await getUserFromAuthToken(cookieAuthToken);
 
     if (isError == false) {
         userDoc._authToken = new mongoose.mongo.ObjectId(0);
         userDoc.save();
-        
-        res.clearCookie("_authToken", {sameSite: "lax", httpOnly: true, path: "/"});
-        
+
+        res.clearCookie("_authToken", { sameSite: "lax", httpOnly: true, path: "/" });
+
     }
 
     res.send(JSON.stringify(jsonsResponse))
@@ -366,9 +366,8 @@ expressApp.route("/collections")
                     //this token is therefore invalid,
                     //we reset the _authToken cookie
 
-                    res.cookie("_authToken", "", {
-                        httpOnly: true,
-                    });
+                    res.clearCookie("_authToken", { sameSite: "lax", httpOnly: true, path: "/" });
+
 
                 }
 
