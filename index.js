@@ -26,7 +26,7 @@ expressApp.use(cookiesParser());
 //db connection here
 mongoose.connect(process.env.DB_URI).catch((err) => {
     // console.log("connection mostlikely failed")
-    throw new Error(err) // connection
+    throw Error(err) // connection
 });
 
 //schemas
@@ -480,6 +480,10 @@ expressApp.route("/notes")
     })
     .post(async (req, res) => {
         //we expect a req.body of type NoteDataType as defined in the front end
+        //_ownerCollectionId *
+        //title
+        //body
+
 
         let jsonResponseBody = {
             succeeded: false,
@@ -521,6 +525,57 @@ expressApp.route("/notes")
         }
 
         res.json(jsonResponseBody)
+    })
+    .delete(async (req, res) => {
+        //cookies _authToken espected
+        //noteId is expected from req body
+
+        let jsonResponse = {
+            doc: {},
+            succeeded: false, //depracated
+            message: "",
+            isError: false
+        }
+
+
+        //check presence of a _authToken in cookies
+        if (req.cookies._authToken) {
+            // console.log(req.cookies)
+
+            let { userDoc, isError, errorIfAny } = await getUserFromAuthToken(req.cookies._authToken)
+
+            if (userDoc !== null && isError == false) {
+                await NoteModel.findByIdAndDelete(req.body.noteId).then((doc) => {
+                    if (doc !== null) {
+                        console.log("this doc has been deleted")
+                        console.log(doc)
+
+                        jsonResponse = {
+                            doc,
+                            message: "Note Deleted successfully",
+                            isError: false
+                        }
+                    } else {
+                        jsonResponse = {
+                            doc,
+                            message: "No doc found with this _id",
+                            isError: true
+                        }
+                    }
+
+                }, (err) => {
+                    console.log(err)
+                    jsonResponse = {
+                        isError: true,
+                        message: new String(err)
+                    }
+                })
+            }
+
+        }
+
+
+        res.send(JSON.stringify(jsonResponse))
     })
 
 expressApp.listen(port, () => {
