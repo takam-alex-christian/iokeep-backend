@@ -94,6 +94,22 @@ const NoteModel = mongoose.model("Note", NoteSchema);
 
 
 //utils functions
+async function isValidAuthToken(_authToken) {
+    let isValid = false;
+
+    //in the future Auth token will change, so being able to validate it based on newly created criteria will be fundamental
+    if (new String(_authToken).toString().length !== 0 && _authToken !== null) {
+        let user = await getUserFromAuthToken(_authToken);
+
+        if (!user.isError && user.userDoc !== null) {
+            isValid = true
+        } else isValid = false
+
+    } else isValid = false
+
+    return isValid
+}
+
 async function getUserFromAuthToken(_authToken) {
 
     let userDoc = null
@@ -574,6 +590,38 @@ expressApp.route("/notes")
 
         }
 
+
+        res.send(JSON.stringify(jsonResponse))
+    })
+    .patch(async (req, res) => {
+        //expect _authToken
+        console.log(req.cookies._authToken)
+
+        //expects _id, title, body, tags
+        let jsonResponse = {
+            message: "",
+            isError: false,
+            success: false
+        }
+
+        if (req.cookies._authToken) { //maybe there's a better way to check for the validity of a cookie
+
+            let isAuthValid = await isValidAuthToken(req.cookies._authToken); //check for the validity of the _authToken
+
+            if (isAuthValid) {
+
+                await NoteModel.findByIdAndUpdate(req.body._id || req.body.noteId, { title: req.body.title, body: req.body.body, tags: req.body.tags, lastModified: Date.now() }).then((doc) => {
+                    console.log("worked successfully /n")
+                    console.log(doc);
+
+                    jsonResponse = { ...jsonResponse, message: "success", success: true }
+                }, (err) => {
+                    console.log(err);
+                    jsonResponse = { ...jsonResponse, message: new String(err).toString(), isError: true }
+                })
+
+            } else jsonResponse = { ...jsonResponse, message: "invalid token", isError: true }
+        }
 
         res.send(JSON.stringify(jsonResponse))
     })
