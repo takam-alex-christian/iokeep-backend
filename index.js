@@ -610,15 +610,31 @@ expressApp.route("/notes")
 
             if (isAuthValid) {
 
-                await NoteModel.findByIdAndUpdate(req.body._id || req.body.noteId, { title: req.body.title, body: req.body.body, tags: req.body.tags, lastModified: Date.now() }).then((doc) => {
+                const noteToUpdate = await NoteModel.findById(req.body._id);
+
+                noteToUpdate.title = req.body.title;
+                noteToUpdate.body = req.body.body;
+                noteToUpdate.lastModified = Date.now();
+
+                await noteToUpdate.save().then((doc)=>{
                     console.log("worked successfully /n")
                     console.log(doc);
 
                     jsonResponse = { ...jsonResponse, message: "success", success: true, doc: doc }
-                }, (err) => {
+                }, (err)=>{
                     console.log(err);
                     jsonResponse = { ...jsonResponse, message: new String(err).toString(), isError: true }
                 })
+
+                // await NoteModel.findByIdAndUpdate(req.body._id, { title: req.body.title, body: req.body.body, tags: req.body.tags, lastModified: Date.now() }).then((doc) => {
+                //     console.log("worked successfully /n")
+                //     console.log(doc);
+
+                //     jsonResponse = { ...jsonResponse, message: "success", success: true, doc: doc }
+                // }, (err) => {
+                //     console.log(err);
+                //     jsonResponse = { ...jsonResponse, message: new String(err).toString(), isError: true }
+                // })
 
             } else jsonResponse = { ...jsonResponse, message: "invalid token", isError: true }
         }
