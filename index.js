@@ -614,7 +614,7 @@ expressApp.route("/notes")
                     console.log("worked successfully /n")
                     console.log(doc);
 
-                    jsonResponse = { ...jsonResponse, message: "success", success: true }
+                    jsonResponse = { ...jsonResponse, message: "success", success: true, doc: doc }
                 }, (err) => {
                     console.log(err);
                     jsonResponse = { ...jsonResponse, message: new String(err).toString(), isError: true }
