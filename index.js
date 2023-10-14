@@ -457,20 +457,33 @@ expressApp.route("/notes")
                 if (foundUser !== null) {
                     //we can continue with the note fetching process
                     // console.log(`the value of req.query._collectionId is ${req.query._collectionId}`)
-                    console.log(req.query)
-                    await NoteModel.find({ _ownerCollectionId: req.query._collectionId }).then((foundNotes) => {
-                        //we can do something with the fetched notes 
-                        if (foundNotes.length !== 0) {
-                            jsonResponseBody.notes = foundNotes //prepare them as response
-                        } else if (foundNotes.length == 0) {
-                            jsonResponseBody.error = "No notes found"
+                    // console.log(req.query)
+
+                    //old implementation
+                    // await NoteModel.find({ _ownerCollectionId: req.query._collectionId }).then((foundNotes) => {
+                    //     //we can do something with the fetched notes 
+                    //     if (foundNotes.length !== 0) {
+                    //         jsonResponseBody.notes = foundNotes //prepare them as response
+                    //     } else if (foundNotes.length == 0) {
+                    //         jsonResponseBody.error = "No notes found"
+                    //     }
+
+                    //     // console.log(foundNotes)
+
+                    // }, (err) => {
+                    //     console.log(err)
+                    // })
+                    //end of old implementation
+                    //new implementation
+                    await NoteModel.find({ _ownerCollectionId: req.query._collectionId }).sort({ lastModified: -1 }).exec((docs, err) => {
+                        if (err) {
+                            jsonResponseBody = { notes: [], error: err }
+                        } else {
+                            //we just work with the notes that we have right here.
+                            jsonResponseBody = { notes: docs, error: "" }
                         }
-
-                        // console.log(foundNotes)
-
-                    }, (err) => {
-                        console.log(err)
                     })
+                    //end of new implementation
 
                 } else if (foundUser == null) {
                     jsonResponseBody.error = "no user found, sigin"
@@ -609,11 +622,11 @@ expressApp.route("/notes")
             let isAuthValid = await isValidAuthToken(req.cookies._authToken); //check for the validity of the _authToken
 
             if (isAuthValid) {
-                
+
                 await NoteModel.findByIdAndUpdate(req.body._id, { title: req.body.title, body: req.body.body, tags: req.body.tags, lastModified: Date.now() }).then((doc) => {
                     console.log("worked successfully /n")
 
-                    jsonResponse = { ...jsonResponse, message: "success", success: true}
+                    jsonResponse = { ...jsonResponse, message: "success", success: true }
                 }, (err) => {
                     console.log(err);
                     jsonResponse = { ...jsonResponse, message: new String(err).toString(), isError: true }
