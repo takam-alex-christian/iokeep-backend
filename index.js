@@ -473,16 +473,17 @@ expressApp.route("/notes")
                     // }, (err) => {
                     //     console.log(err)
                     // })
-                    //end of old implementation
+                    //end of old implementation'
+
                     //new implementation
-                    await NoteModel.find({ _ownerCollectionId: req.query._collectionId }).sort({ lastModified: -1 }).exec((docs, err) => {
-                        if (err) {
-                            jsonResponseBody = { notes: [], error: err }
-                        } else {
-                            //we just work with the notes that we have right here.
-                            jsonResponseBody = { notes: docs, error: "" }
+                    await NoteModel.find({ _ownerCollectionId: req.query._collectionId }).sort({ lastModified: -1 }).exec().then((sortedNotes, err)=>{
+                        if(!err){
+                            jsonResponseBody = {notes: sortedNotes, err: null}
+                        }else {
+                            jsonResponseBody = {notes: sortedNotes, err: "there\'s an error message here"}
                         }
                     })
+
                     //end of new implementation
 
                 } else if (foundUser == null) {
