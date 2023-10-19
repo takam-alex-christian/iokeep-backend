@@ -435,6 +435,52 @@ expressApp.route("/collection")
 
         res.send(JSON.stringify(jsonResponseBody))
     })
+    .delete(async (req, res)=>{
+
+        //we expect a req body of the form
+        //{collectionId, collectionName};
+        //first we checkout the cookies
+
+        let jsonResponse = {
+            isError: null, //is false if everything went on well
+            message: null //has a string value at send time
+        }
+        
+        let isAuthed = isValidAuthToken(req.cookies._authToken);
+
+        if(isAuthed){
+            await CollectionModel.findOneAndDelete({_collectionId: req.body._collectionId}).then((doc, err)=>{
+
+                if(!err && doc){
+                    jsonResponse = {isError: false, message: `Deleted [${doc.collectionName}] !`};
+                }else{
+                    jsonResponse = {isError: true, message: !doc? "Collection doesn\'t exist" : err}
+                }
+            })
+        }
+
+        res.send(JSON.stringify(jsonResponse));
+    })
+    .patch(async (req, res)=>{
+
+        let jsonResponse = {
+            isError: null,
+            message: null
+        }
+
+        if(await isValidAuthToken(req.cookies._authToken)){
+            await CollectionModel.findOneAndUpdate({_collectionId: req.body._collectionId}, {collectionName: req.body.collectionName}).then((doc, err)=>{
+                if(!err && doc){
+                    jsonResponse = {isError: false, message: `collection ${req.body.collectionName} updated to ${doc.collectionName} `}
+                }else {
+                    jsonResponse = {isError: true, message: !doc? "collection doesn\'t exist" : err}
+                }
+            })
+        }
+
+        res.send(JSON.stringify(jsonResponse));
+    })
+
 
 expressApp.route("/notes")
     .get(async (req, res) => {
